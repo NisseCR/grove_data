@@ -116,14 +116,14 @@ def _apply_crossfade_loop(input_path: Path, output_path: Path) -> None:
     )
 
 
-def process_audio(source: Path, dest: Path) -> None:
+def process_audio(source: Path, dest: Path, *, loop: bool = False) -> None:
     """Convert a source audio file to WebM/Opus, normalised to LUFS_TARGET.
 
-    Long files (> LOOP_TARGET_DURATION) are first trimmed and given a baked
-    crossfade loop point before normalisation.
+    When loop=True, long files (> LOOP_TARGET_DURATION) are first trimmed and
+    given a baked crossfade loop point before normalisation.
     """
     duration = _get_duration(source)
-    if duration > LOOP_TARGET_DURATION:
+    if loop and duration > LOOP_TARGET_DURATION:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp_path = Path(tmp.name)
         try:

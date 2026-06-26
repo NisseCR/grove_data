@@ -81,7 +81,8 @@ def run(source_root: Path) -> None:
             if suffix in AUDIO_EXTENSIONS:
                 out_path = _mirror_path(source_root, source_file, output_root, ".webm")
                 out_path.parent.mkdir(parents=True, exist_ok=True)
-                process_audio(source_file, out_path)
+                is_ambience = "ambiences" in source_file.relative_to(source_root).parts
+                process_audio(source_file, out_path, loop=is_ambience)
 
             elif suffix in IMAGE_EXTENSIONS:
                 out_path = _mirror_path(source_root, source_file, output_root, ".webp")

@@ -17,6 +17,9 @@ import frontmatter
 
 _TRIGGER_RE = re.compile(r"<!--\s*trigger\r?\n(.*?)-->", re.DOTALL)
 _DIVIDER_RE = re.compile(r"<!--\s*divider\s*-->", re.IGNORECASE)
+_POEM_RE = re.compile(r"<!--\s*poem\s*-->(.*?)<!--\s*/poem\s*-->", re.DOTALL | re.IGNORECASE)
+_BLOCK_TOKEN_RE = re.compile(r"(<!--\s*divider\s*-->|<!--\s*poem\s*-->.*?<!--\s*/poem\s*-->)", re.DOTALL | re.IGNORECASE)
+_LINE_SPLIT_RE = re.compile(r"\r?\n")
 
 
 def _parse_audio_ref(s: str) -> dict[str, Any]:
@@ -99,22 +102,41 @@ def _parse_inline(text: str) -> list[dict[str, Any]]:
     return spans
 
 
+def _parse_poem(inner: str) -> dict[str, Any]:
+    stanzas = []
+    for stanza_text in _PARA_SPLIT_RE.split(inner.strip()):
+        stanza_text = stanza_text.strip()
+        if not stanza_text:
+            continue
+        lines = [
+            _parse_inline(line)
+            for line in _LINE_SPLIT_RE.split(stanza_text)
+            if line.strip()
+        ]
+        if lines:
+            stanzas.append(lines)
+    return {"type": "poem", "stanzas": stanzas}
+
+
 def _to_blocks(text: str) -> list[dict[str, Any]]:
-    """Split text on divider comments, then each prose chunk into paragraph spans."""
-    parts = _DIVIDER_RE.split(text)
+    """Split text on divider/poem comments, then each prose chunk into paragraph spans."""
     blocks: list[dict[str, Any]] = []
-    for i, part in enumerate(parts):
-        prose = part.strip()
-        if prose:
+    for part in _BLOCK_TOKEN_RE.split(text):
+        part_stripped = part.strip()
+        if not part_stripped:
+            continue
+        if _DIVIDER_RE.fullmatch(part_stripped):
+            blocks.append({"type": "divider"})
+        elif m := _POEM_RE.fullmatch(part_stripped):
+            blocks.append(_parse_poem(m.group(1)))
+        else:
             paragraphs = [
                 _parse_inline(p.strip())
-                for p in _PARA_SPLIT_RE.split(prose)
+                for p in _PARA_SPLIT_RE.split(part_stripped)
                 if p.strip()
             ]
             if paragraphs:
                 blocks.append({"type": "prose", "paragraphs": paragraphs})
-        if i < len(parts) - 1:
-            blocks.append({"type": "divider"})
     return blocks
 
 
