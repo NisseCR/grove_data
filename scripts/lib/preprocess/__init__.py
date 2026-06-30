@@ -6,6 +6,7 @@ to the appropriate processor (audio, image, video). Outputs are written to a
 mirrored directory tree under OUTPUT_PATH.
 """
 
+import json
 import logging
 import os
 import shutil
@@ -30,6 +31,15 @@ JSON_EXTENSIONS = {".json"}
 MARKDOWN_EXTENSIONS = {".md"}
 
 CACHE_FILENAME = "cache.json"
+
+
+def _read_category_setting(source_file: Path, key: str, *, default):
+    """Read a key from the settings.json in the file's directory, returning default if absent."""
+    settings_path = source_file.parent / "settings.json"
+    if settings_path.is_file():
+        with settings_path.open() as fh:
+            return json.load(fh).get(key, default)
+    return default
 
 
 def _output_root() -> Path:
@@ -82,7 +92,8 @@ def run(source_root: Path) -> None:
                 out_path = _mirror_path(source_root, source_file, output_root, ".webm")
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 is_ambience = "ambiences" in source_file.relative_to(source_root).parts
-                process_audio(source_file, out_path, loop=is_ambience)
+                loop = _read_category_setting(source_file, "loop", default=is_ambience)
+                process_audio(source_file, out_path, loop=loop)
 
             elif suffix in IMAGE_EXTENSIONS:
                 out_path = _mirror_path(source_root, source_file, output_root, ".webp")

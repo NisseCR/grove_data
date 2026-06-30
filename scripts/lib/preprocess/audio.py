@@ -21,8 +21,8 @@ LUFS_TARGET = -16.0
 TRUE_PEAK = -1.5
 LRA = 11
 
-LOOP_TARGET_DURATION = 60  # seconds — files longer than this get crossfade-looped
-LOOP_CROSSFADE = 3          # seconds — overlap baked at the loop point
+LOOP_TARGET_DURATION = 120  # seconds — files longer than this get crossfade-looped
+LOOP_CROSSFADE = 3  # seconds — overlap baked at the loop point
 
 
 def _loudnorm_filter(extra: str = "") -> str:
@@ -33,7 +33,16 @@ def _loudnorm_filter(extra: str = "") -> str:
 def _measure_loudness(input_path: Path) -> dict:
     """Run the loudnorm first pass and parse JSON loudness measurements from stderr."""
     result = subprocess.run(
-        ["ffmpeg", "-i", str(input_path), "-af", _loudnorm_filter(":print_format=json"), "-f", "null", "-"],
+        [
+            "ffmpeg",
+            "-i",
+            str(input_path),
+            "-af",
+            _loudnorm_filter(":print_format=json"),
+            "-f",
+            "null",
+            "-",
+        ],
         capture_output=True,
         text=True,
     )
@@ -56,13 +65,21 @@ def _apply_normalization(input_path: Path, output_path: Path, measured: dict) ->
     )
     subprocess.run(
         [
-            "ffmpeg", "-i", str(input_path),
-            "-map", "0:a",
-            "-af", _loudnorm_filter(extra),
-            "-ar", str(SAMPLE_RATE),
-            "-c:a", "libopus",
-            "-b:a", "128k",
-            "-y", str(output_path),
+            "ffmpeg",
+            "-i",
+            str(input_path),
+            "-map",
+            "0:a",
+            "-af",
+            _loudnorm_filter(extra),
+            "-ar",
+            str(SAMPLE_RATE),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
+            str(output_path),
         ],
         capture_output=True,
         text=True,
@@ -99,16 +116,25 @@ def _apply_crossfade_loop(input_path: Path, output_path: Path) -> None:
     subprocess.run(
         [
             "ffmpeg",
-            "-t", str(LOOP_TARGET_DURATION), "-i", str(input_path),
-            "-t", str(LOOP_CROSSFADE),        "-i", str(input_path),
+            "-t",
+            str(LOOP_TARGET_DURATION),
+            "-i",
+            str(input_path),
+            "-t",
+            str(LOOP_CROSSFADE),
+            "-i",
+            str(input_path),
             "-filter_complex",
             (
                 f"[0:a][1:a]acrossfade=d={LOOP_CROSSFADE}:c1=qsin:c2=qsin[cf];"
                 f"[cf]atrim=start={LOOP_CROSSFADE},asetpts=PTS-STARTPTS[out]"
             ),
-            "-map", "[out]",
-            "-c:a", "pcm_s16le",
-            "-y", str(output_path),
+            "-map",
+            "[out]",
+            "-c:a",
+            "pcm_s16le",
+            "-y",
+            str(output_path),
         ],
         capture_output=True,
         text=True,
